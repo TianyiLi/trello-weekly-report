@@ -1,0 +1,29 @@
+{
+    "name": "trello-weekly",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@types/minimist": "^1.2.0",
+        "@types/nodemailer": "^6.4.0",
+        "axios": "^0.19.2",
+        "cli-table2": "^0.2.0",
+        "dotenv": "^8.2.0",
+        "inquirer": "^7.1.0",
+        "inquirer-fuzzy-path": "^2.3.0",
+        "minimist": "^1.2.5",
+        "nodemailer": "^6.4.6",
+        "query-string": "^6.12.1",
+        "rxjs": "^6.5.5",
+        "typescript": "^3.8.3"
+    },
+    "devDependencies": {
+        "@types/inquirer": "^6.5.0"
+    }
+}

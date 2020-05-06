@@ -16,6 +16,7 @@ const cli_table2_1 = __importDefault(require("cli-table2"));
 const os_1 = require("os");
 const trelloService_1 = require("./trelloService");
 const configure_1 = require("./configure");
+const temp_server_1 = require("./temp-server");
 const arg = minimist_1.default(process.argv.slice(2));
 const baseURL = 'https://api.trello.com';
 const req = axios_1.default.create({
@@ -150,7 +151,7 @@ async function doStuff(config, useConfig = false) {
     const nextWeekList = await service
         .getList(nextWeekId)
         .then((data) => data.filter((ele) => ele.idMembers.includes(personId)));
-    const mailContent = mail_1.list2HTML({
+    const listContent = mail_1.list2HTML({
         ['Next Week']: nextWeekList.map((ele) => ele.name),
         ['This Week']: thisWeekList.map((ele) => ele.name),
     });
@@ -169,6 +170,11 @@ async function doStuff(config, useConfig = false) {
         ]);
     });
     console.log(cliTable.toString());
+    const signatureFile = fs_1.existsSync(config.MAIL_SIGNATURE_FILE)
+        ? fs_1.readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
+        : '';
+    const mailContent = `${listContent}<br />${signatureFile}`;
+    const server = await temp_server_1.createTempServer(mailContent);
     const confirm = await inquirer_1.default
         .prompt({
         message: 'Confirm to send?',
@@ -177,15 +183,13 @@ async function doStuff(config, useConfig = false) {
         default: true,
     })
         .then((res) => res.confirm);
+    server.close();
     if (!confirm)
         process.exit(0);
-    const signatureFile = fs_1.existsSync(config.MAIL_SIGNATURE_FILE)
-        ? fs_1.readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
-        : '';
     await mail_1.sendMail({
         auth: { user: config.MAIL_USER, pass: config.MAIL_PASSWORD },
         cc: config.MAIL_CC,
-        html: `${mailContent}<br />${signatureFile}`,
+        html: mailContent,
         subject: `[${date_fns_1.format(new Date(), 'MMdd')}]${config.MAIL_SUBJECT}`,
         to: config.MAIL_TO,
     }).catch(console.error);

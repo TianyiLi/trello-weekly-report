@@ -10,32 +10,15 @@ import { resolve } from 'path'
 import { format } from 'date-fns'
 import table from 'cli-table2'
 import { homedir } from 'os'
+import { Trello } from './definition'
+import { TrelloService } from './trelloService'
+import { configure } from './configure'
 
 const arg = minimist(process.argv.slice(2))
 const baseURL = 'https://api.trello.com'
 const req = axios.create({
   baseURL: baseURL,
 })
-
-namespace Trello {
-  export interface ENV {
-    MAIL_USER: string
-    MAIL_PASSWORD: string
-    MAIL_CC: string
-    MAIL_TO: string
-    MAIL_SUBJECT: string
-    MAIL_SIGNATURE_FILE: string
-
-    TRELLO_KEY: string
-    TRELLO_TOKEN: string
-
-    TARGET_BOARD_NAME: string
-    NEXT_WEEK_LIST_NAME: string
-    THIS_WEEK_LIST_NAME: string
-
-    NO_ASK: string
-  }
-}
 
 function validateFile(config: Trello.ENV) {
   const empty = Object.entries(config).filter((ele) => ele[1] === '')
@@ -57,25 +40,12 @@ function validateFile(config: Trello.ENV) {
 
 async function doStuff(config: Trello.ENV, useConfig = false) {
   const auth = { key: config.TRELLO_KEY, token: config.TRELLO_TOKEN }
+  const service = new TrelloService(auth)
 
-  const { id: personId } = await req
-    .get<{ id: string }>(
-      `/1/members/me/?${stringify({
-        ...auth,
-        fields: 'id',
-      })}`
-    )
-    .then(
-      (res) => res.data,
-      (err) => (console.error(err), { id: '-1' })
-    )
+  const { id: personId } = await service.getPersonalId()
   if (personId === '-1') process.exit(1)
-  const boards = await req
-    .get<{ id: string; name: string }[]>(
-      `/1/members/me/boards?${stringify({ ...auth, fields: 'name' })}`
-    )
-    .then((res) => res.data)
-  if (config.TARGET_BOARD_NAME === '') {
+  const boards = await service.getBoards()
+  if (!config.TARGET_BOARD_NAME) {
     config.TARGET_BOARD_NAME = (
       await inquirer.prompt<{ name: string }>({
         message: 'Which board do you want to?',
@@ -86,14 +56,32 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
       })
     ).name
   }
-  const board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME)
-  if (!board)
-    throw new Error(`cannot find ${config.TARGET_BOARD_NAME} in the list`)
-  const list = await req
-    .get(
-      `/1/boards/${board.id}/lists?${stringify({ ...auth, fields: 'name' })}`
-    )
-    .then((res) => res.data as { name: string; id: string }[])
+  let board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME)
+  if (!board) {
+    const boardName = didyoumean(
+      config.TARGET_BOARD_NAME,
+      boards.map((ele) => ele.name)
+    ) as string | undefined
+
+    if (!boardName) {
+      throw new Error(`cannot find ${config.TARGET_BOARD_NAME} in the list`)
+    }
+    const useMeanBoardName = await inquirer
+      .prompt({
+        message: `Cannot find "${config.TARGET_BOARD_NAME}" from config, did you mean "${boardName}"`,
+        type: 'confirm',
+        name: 'boardName',
+      })
+      .then((res) => res.boardName)
+    if (!useMeanBoardName)
+      throw new Error(`Cannot find ${config.TARGET_BOARD_NAME}`)
+    config.TARGET_BOARD_NAME = boardName
+    board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME) as {
+      id: string
+      name: string
+    }
+  }
+  const list = await service.getListInBoard(board)
 
   // This week
   if (!config.THIS_WEEK_LIST_NAME) {
@@ -120,7 +108,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
         )
       const nameIsCorrect = await inquirer
         .prompt<{ nameIsTrue: boolean }>({
-          message: `Cannot find ${config.THIS_WEEK_LIST_NAME} did you mean ${mean}?`,
+          message: `Cannot find "${config.THIS_WEEK_LIST_NAME}" did you mean "${mean}"?`,
           type: 'confirm',
           default: true,
           name: 'nameIsTrue',
@@ -161,7 +149,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
         )
       const nameIsCorrect = await inquirer
         .prompt<{ nameIsTrue: boolean }>({
-          message: `Cannot find ${config.NEXT_WEEK_LIST_NAME} to did you mean ${mean}?`,
+          message: `Cannot find "${config.NEXT_WEEK_LIST_NAME}" to did you mean "${mean}"?`,
           type: 'confirm',
           default: true,
           name: 'nameIsTrue',
@@ -183,23 +171,11 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   const nextWeekId = list.find(
     (ele) => ele.name === config.NEXT_WEEK_LIST_NAME
   )!.id
-  const thisWeekList = await req
-    .get<{ id: string; name: string; idMembers: string[] }[]>(
-      `/1/lists/${thisWeekId}/cards?${stringify({
-        ...auth,
-        fields: 'name,idMembers',
-      })}`
-    )
-    .then((res) => res.data)
+  const thisWeekList = await service
+    .getList(thisWeekId)
     .then((data) => data.filter((ele) => ele.idMembers.includes(personId)))
-  const nextWeekList = await req
-    .get<{ id: string; name: string; idMembers: string[] }[]>(
-      `/1/list/${nextWeekId}/cards?${stringify({
-        ...auth,
-        fields: 'name,idMembers',
-      })}`
-    )
-    .then((res) => res.data)
+  const nextWeekList = await service
+    .getList(nextWeekId)
     .then((data) => data.filter((ele) => ele.idMembers.includes(personId)))
   const mailContent = list2HTML({
     ['Next Week']: nextWeekList.map((ele) => ele.name),
@@ -271,33 +247,32 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   }
 }
 
-async function MainProcess(config?: Trello.ENV) {
+async function MainProcess() {
+  let config = (dotenv.config({ path: arg.file }).parsed ||
+    dotenv.config().parsed) as Trello.ENV | undefined
+  if (existsSync(resolve('~', '.trello-weekly-report'))) {
+    config = JSON.parse(
+      readFileSync(resolve('~', '.trello-weekly-report'), {
+        encoding: 'utf8',
+      })
+    ) as Trello.ENV
+  }
   const { useConfig } = config
     ? await inquirer.prompt<{ useConfig: boolean }>({
-        message: 'Use Default Config',
+        message: 'Use Config',
         default: true,
         type: 'confirm',
         name: 'useConfig',
       })
     : { useConfig: false }
-  if (useConfig && config) {
-    await doStuff(config)
+  if (!config || !useConfig) {
+    config = await configure()
   }
+  if (!validateFile(config)) {
+    throw new Error('Config file get error!')
+  }
+
+  await doStuff(config)
 }
 
-let config = (dotenv.config({ path: arg.file }).parsed ||
-  dotenv.config().parsed) as Trello.ENV | undefined
-if (existsSync(resolve('~', '.trello-weekly-report'))) {
-  config = JSON.parse(
-    readFileSync(resolve('~', '.trello-weekly-report'), {
-      encoding: 'utf8',
-    })
-  ) as Trello.ENV
-}
-if (!config) {
-  throw new Error('Config file does not exist')
-}
-if (!validateFile(config)) {
-  throw new Error('Config file get error!')
-}
-MainProcess(config)
+MainProcess()

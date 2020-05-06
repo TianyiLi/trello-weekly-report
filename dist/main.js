@@ -7,28 +7,25 @@ const inquirer_1 = __importDefault(require("inquirer"));
 const minimist_1 = __importDefault(require("minimist"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const axios_1 = __importDefault(require("axios"));
-const query_string_1 = require("query-string");
 const didyoumean_1 = __importDefault(require("didyoumean"));
 const mail_1 = require("./mail");
 const fs_1 = require("fs");
+const path_1 = require("path");
 const date_fns_1 = require("date-fns");
 const cli_table2_1 = __importDefault(require("cli-table2"));
+const os_1 = require("os");
+const trelloService_1 = require("./trelloService");
+const configure_1 = require("./configure");
 const arg = minimist_1.default(process.argv.slice(2));
 const baseURL = 'https://api.trello.com';
 const req = axios_1.default.create({
     baseURL: baseURL,
 });
-var Trello;
-(function (Trello) {
-    const defaultValue = {
-        boardName: '',
-        listName: ['This Week', 'Next Week'],
-    };
-})(Trello || (Trello = {}));
 function validateFile(config) {
     const empty = Object.entries(config).filter((ele) => ele[1] === '');
     if (empty.length === 0)
-        return false;
+        return true;
+    console.log(empty);
     const allow = empty
         .map((ele) => ele[0])
         .every((ele) => [
@@ -36,23 +33,19 @@ function validateFile(config) {
         'TARGET_FROM_LIST_NAME',
         'TARGET_TO_LIST_NAME',
         'MAIL_CC',
-        'MAIL_SIGNATURE_FILE'
+        'MAIL_SIGNATURE_FILE',
     ].includes(ele));
-    console.log(empty);
     return allow;
 }
 async function doStuff(config, useConfig = false) {
     var _a, _b;
     const auth = { key: config.TRELLO_KEY, token: config.TRELLO_TOKEN };
-    const { id: personId } = await req
-        .get(`/1/members/me/?${query_string_1.stringify(Object.assign(Object.assign({}, auth), { fields: 'id' }))}`)
-        .then((res) => res.data, (err) => (console.error(err), { id: '-1' }));
+    const service = new trelloService_1.TrelloService(auth);
+    const { id: personId } = await service.getPersonalId();
     if (personId === '-1')
         process.exit(1);
-    const boards = await req
-        .get(`/1/members/me/boards?${query_string_1.stringify(Object.assign(Object.assign({}, auth), { fields: 'name' }))}`)
-        .then((res) => res.data);
-    if (config.TARGET_BOARD_NAME === '') {
+    const boards = await service.getBoards();
+    if (!config.TARGET_BOARD_NAME) {
         config.TARGET_BOARD_NAME = (await inquirer_1.default.prompt({
             message: 'Which board do you want to?',
             default: boards[0].name,
@@ -61,12 +54,25 @@ async function doStuff(config, useConfig = false) {
             choices: boards.map((ele) => ele.name),
         })).name;
     }
-    const board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME);
-    if (!board)
-        throw new Error(`cannot find ${config.TARGET_BOARD_NAME} in the list`);
-    const list = await req
-        .get(`/1/boards/${board.id}/lists?${query_string_1.stringify(Object.assign(Object.assign({}, auth), { fields: 'name' }))}`)
-        .then((res) => res.data);
+    let board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME);
+    if (!board) {
+        const boardName = didyoumean_1.default(config.TARGET_BOARD_NAME, boards.map((ele) => ele.name));
+        if (!boardName) {
+            throw new Error(`cannot find ${config.TARGET_BOARD_NAME} in the list`);
+        }
+        const useMeanBoardName = await inquirer_1.default
+            .prompt({
+            message: `Cannot find "${config.TARGET_BOARD_NAME}" from config, did you mean "${boardName}"`,
+            type: 'confirm',
+            name: 'boardName',
+        })
+            .then((res) => res.boardName);
+        if (!useMeanBoardName)
+            throw new Error(`Cannot find ${config.TARGET_BOARD_NAME}`);
+        config.TARGET_BOARD_NAME = boardName;
+        board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME);
+    }
+    const list = await service.getListInBoard(board);
     // This week
     if (!config.THIS_WEEK_LIST_NAME) {
         const thisWeek = (await inquirer_1.default.prompt({
@@ -89,7 +95,7 @@ async function doStuff(config, useConfig = false) {
                 throw new Error(`Cannot find any name like ${config.THIS_WEEK_LIST_NAME}!`);
             const nameIsCorrect = await inquirer_1.default
                 .prompt({
-                message: `Cannot find ${config.THIS_WEEK_LIST_NAME} did you mean ${mean}?`,
+                message: `Cannot find "${config.THIS_WEEK_LIST_NAME}" did you mean "${mean}"?`,
                 type: 'confirm',
                 default: true,
                 name: 'nameIsTrue',
@@ -123,7 +129,7 @@ async function doStuff(config, useConfig = false) {
                 throw new Error(`Cannot find any name like ${config.NEXT_WEEK_LIST_NAME}!`);
             const nameIsCorrect = await inquirer_1.default
                 .prompt({
-                message: `Cannot find ${config.NEXT_WEEK_LIST_NAME} to did you mean ${mean}?`,
+                message: `Cannot find "${config.NEXT_WEEK_LIST_NAME}" to did you mean "${mean}"?`,
                 type: 'confirm',
                 default: true,
                 name: 'nameIsTrue',
@@ -138,13 +144,11 @@ async function doStuff(config, useConfig = false) {
     // assemble
     const thisWeekId = list.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME).id;
     const nextWeekId = list.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME).id;
-    const thisWeekList = await req
-        .get(`/1/lists/${thisWeekId}/cards?${query_string_1.stringify(Object.assign(Object.assign({}, auth), { fields: 'name,idMembers' }))}`)
-        .then((res) => res.data)
+    const thisWeekList = await service
+        .getList(thisWeekId)
         .then((data) => data.filter((ele) => ele.idMembers.includes(personId)));
-    const nextWeekList = await req
-        .get(`/1/list/${nextWeekId}/cards?${query_string_1.stringify(Object.assign(Object.assign({}, auth), { fields: 'name,idMembers' }))}`)
-        .then((res) => res.data)
+    const nextWeekList = await service
+        .getList(nextWeekId)
         .then((data) => data.filter((ele) => ele.idMembers.includes(personId)));
     const mailContent = mail_1.list2HTML({
         ['Next Week']: nextWeekList.map((ele) => ele.name),
@@ -185,27 +189,48 @@ async function doStuff(config, useConfig = false) {
         subject: `[${date_fns_1.format(new Date(), 'MMdd')}]${config.MAIL_SUBJECT}`,
         to: config.MAIL_TO,
     }).catch(console.error);
+    console.log('Success!');
+    console.log(config);
+    if (config.NO_ASK.toLowerCase() === 'false') {
+        const ans = await inquirer_1.default
+            .prompt({
+            message: 'Save the config?',
+            type: 'confirm',
+            name: 'ans',
+        })
+            .then((res) => res.ans);
+        if (!ans)
+            return;
+        config.NO_ASK = 'TRUE';
+        config.MAIL_SIGNATURE_FILE = path_1.resolve(process.cwd(), config.MAIL_SIGNATURE_FILE);
+        fs_1.writeFileSync(path_1.resolve(os_1.homedir(), '.trello-weekly-report'), JSON.stringify(config), {
+            encoding: 'utf8',
+        });
+    }
 }
-async function MainProcess(config) {
+async function MainProcess() {
+    let config = (dotenv_1.default.config({ path: arg.file }).parsed ||
+        dotenv_1.default.config().parsed);
+    if (fs_1.existsSync(path_1.resolve('~', '.trello-weekly-report'))) {
+        config = JSON.parse(fs_1.readFileSync(path_1.resolve('~', '.trello-weekly-report'), {
+            encoding: 'utf8',
+        }));
+    }
     const { useConfig } = config
         ? await inquirer_1.default.prompt({
-            message: 'Use Default Config',
+            message: 'Use Config',
             default: true,
             type: 'confirm',
             name: 'useConfig',
         })
         : { useConfig: false };
-    if (useConfig && config) {
-        await doStuff(config);
+    if (!config || !useConfig) {
+        config = await configure_1.configure();
     }
+    if (!validateFile(config)) {
+        throw new Error('Config file get error!');
+    }
+    await doStuff(config);
 }
-const config = (dotenv_1.default.config({ path: arg.file }).parsed ||
-    dotenv_1.default.config().parsed);
-if (!config) {
-    throw new Error('Config file does not exist');
-}
-if (!validateFile(config)) {
-    throw new Error('Config file get error!');
-}
-MainProcess(config);
+MainProcess();
 //# sourceMappingURL=main.js.map

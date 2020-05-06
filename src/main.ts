@@ -13,6 +13,7 @@ import { homedir } from 'os'
 import { Trello } from './definition'
 import { TrelloService } from './trelloService'
 import { configure } from './configure'
+import { createTempServer } from './temp-server'
 
 const arg = minimist(process.argv.slice(2))
 const baseURL = 'https://api.trello.com'
@@ -177,7 +178,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   const nextWeekList = await service
     .getList(nextWeekId)
     .then((data) => data.filter((ele) => ele.idMembers.includes(personId)))
-  const mailContent = list2HTML({
+  const listContent = list2HTML({
     ['Next Week']: nextWeekList.map((ele) => ele.name),
     ['This Week']: thisWeekList.map((ele) => ele.name),
   })
@@ -200,6 +201,11 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   )
 
   console.log(cliTable.toString())
+  const signatureFile = existsSync(config.MAIL_SIGNATURE_FILE)
+  ? readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
+  : ''
+  const mailContent = `${listContent}<br />${signatureFile}`
+  const server = await createTempServer(mailContent)
 
   const confirm = await inquirer
     .prompt<{ confirm: boolean }>({
@@ -209,14 +215,13 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
       default: true,
     })
     .then((res) => res.confirm)
+  server.close();
   if (!confirm) process.exit(0)
-  const signatureFile = existsSync(config.MAIL_SIGNATURE_FILE)
-    ? readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
-    : ''
+
   await sendMail({
     auth: { user: config.MAIL_USER, pass: config.MAIL_PASSWORD },
     cc: config.MAIL_CC,
-    html: `${mailContent}<br />${signatureFile}`,
+    html: mailContent,
     subject: `[${format(new Date(), 'MMdd')}]${config.MAIL_SUBJECT}`,
     to: config.MAIL_TO,
   }).catch(console.error)

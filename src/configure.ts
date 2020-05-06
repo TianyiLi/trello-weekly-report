@@ -44,13 +44,13 @@ export async function configure() {
       name: 'TRELLO_TOKEN',
     },
   ])
-  // console.log('Do the validation with mail, please wait')
-  // await sendMail({
-  //   auth: { user: result.MAIL_USER, pass: result.MAIL_PASSWORD },
-  //   subject: 'Cli test',
-  //   to: result.MAIL_USER,
-  //   html: 'This is the test mail',
-  // })
+  console.log('Do the validation with mail, please wait')
+  await sendMail({
+    auth: { user: result.MAIL_USER, pass: result.MAIL_PASSWORD },
+    subject: 'Cli test',
+    to: result.MAIL_USER,
+    html: 'This is the test mail',
+  })
   console.log('Do the trello key and token validation, please wait')
   const service = new TrelloService({
     key: result.TRELLO_KEY,

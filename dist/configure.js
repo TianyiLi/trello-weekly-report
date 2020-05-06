@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const inquirer_1 = __importDefault(require("inquirer"));
+const mail_1 = require("./mail");
 const trelloService_1 = require("./trelloService");
 async function configure() {
     const result = await inquirer_1.default.prompt([
@@ -44,13 +45,13 @@ async function configure() {
             name: 'TRELLO_TOKEN',
         },
     ]);
-    // console.log('Do the validation with mail, please wait')
-    // await sendMail({
-    //   auth: { user: result.MAIL_USER, pass: result.MAIL_PASSWORD },
-    //   subject: 'Cli test',
-    //   to: result.MAIL_USER,
-    //   html: 'This is the test mail',
-    // })
+    console.log('Do the validation with mail, please wait');
+    await mail_1.sendMail({
+        auth: { user: result.MAIL_USER, pass: result.MAIL_PASSWORD },
+        subject: 'Cli test',
+        to: result.MAIL_USER,
+        html: 'This is the test mail',
+    });
     console.log('Do the trello key and token validation, please wait');
     const service = new trelloService_1.TrelloService({
         key: result.TRELLO_KEY,

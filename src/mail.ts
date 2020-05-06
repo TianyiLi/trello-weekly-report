@@ -1,10 +1,10 @@
 import nodemailer from 'nodemailer';
 
 interface Arg {
-  auth: { user: string; password: string };
+  auth: { user: string; pass: string };
   html: string;
   to: string;
-  cc: string;
+  cc?: string;
   subject: string;
 }
 

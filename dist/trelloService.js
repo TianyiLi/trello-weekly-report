@@ -34,6 +34,16 @@ class TrelloService {
         const res = await req.get(`/1/lists/${id}/cards?${query_string_1.stringify(Object.assign(Object.assign({}, this._auth), { fields: 'name,idMembers' }))}`);
         return res.data;
     }
+    async moveCardToFinish(idList, cardsList) {
+        for (const cardId of cardsList) {
+            try {
+                await req.put(`/1/cards/${cardId}?${query_string_1.stringify(Object.assign(Object.assign({}, this._auth), { idList }))}`, { fields: 'id' });
+            }
+            catch (error) {
+                console.error(error);
+            }
+        }
+    }
 }
 exports.TrelloService = TrelloService;
 //# sourceMappingURL=trelloService.js.map

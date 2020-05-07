@@ -82,27 +82,27 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
       name: string
     }
   }
-  const list = await service.getListInBoard(board)
+  const lists = await service.getListInBoard(board)
 
   // This week
   if (!config.THIS_WEEK_LIST_NAME) {
     const thisWeek = (
       await inquirer.prompt<{ thisWeek: string }>({
         message: 'Which list you want to set to this week?',
-        default: list[0].name,
+        default: lists[0].name,
         type: 'list',
         name: 'thisWeek',
-        choices: list.map((ele) => ele.name),
+        choices: lists.map((ele) => ele.name),
       })
     ).thisWeek
     config.THIS_WEEK_LIST_NAME = thisWeek
   } else {
-    let thisWeek = list.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME)
+    let thisWeek = lists.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME)
       ?.name
     if (thisWeek) {
       config.THIS_WEEK_LIST_NAME = thisWeek
     } else {
-      const mean = didyoumean(config.THIS_WEEK_LIST_NAME, list as any, 'id')
+      const mean = didyoumean(config.THIS_WEEK_LIST_NAME, lists as any, 'id')
       if (!mean)
         throw new Error(
           `Cannot find any name like ${config.THIS_WEEK_LIST_NAME}!`
@@ -130,20 +130,20 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
     const nextWeek = (
       await inquirer.prompt<{ nextWeek: string }>({
         message: 'Which list you want to set to this week?',
-        default: list[0].name,
+        default: lists[0].name,
         type: 'list',
         name: 'nextWeek',
-        choices: list.map((ele) => ele.name),
+        choices: lists.map((ele) => ele.name),
       })
     ).nextWeek
     config.NEXT_WEEK_LIST_NAME = nextWeek
   } else {
-    let nextWeek = list.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME)
+    let nextWeek = lists.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME)
       ?.name
     if (nextWeek) {
       config.NEXT_WEEK_LIST_NAME = nextWeek
     } else {
-      const mean = didyoumean(config.NEXT_WEEK_LIST_NAME, list as any, 'id')
+      const mean = didyoumean(config.NEXT_WEEK_LIST_NAME, lists as any, 'id')
       if (!mean)
         throw new Error(
           `Cannot find any name like ${config.NEXT_WEEK_LIST_NAME}!`
@@ -166,10 +166,10 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   }
 
   // assemble
-  const thisWeekId = list.find(
+  const thisWeekId = lists.find(
     (ele) => ele.name === config.THIS_WEEK_LIST_NAME
   )!.id
-  const nextWeekId = list.find(
+  const nextWeekId = lists.find(
     (ele) => ele.name === config.NEXT_WEEK_LIST_NAME
   )!.id
   const thisWeekList = await service
@@ -202,8 +202,8 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
 
   console.log(cliTable.toString())
   const signatureFile = existsSync(config.MAIL_SIGNATURE_FILE)
-  ? readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
-  : ''
+    ? readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
+    : ''
   const mailContent = `${listContent}<br />${signatureFile}`
   const server = await createTempServer(mailContent)
 
@@ -215,7 +215,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
       default: true,
     })
     .then((res) => res.confirm)
-  server.close();
+  server.close()
   if (!confirm) process.exit(0)
 
   await sendMail({
@@ -227,7 +227,31 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   }).catch(console.error)
 
   console.log('Success!')
-  console.log(config)
+
+  const moveToFinish = await inquirer
+    .prompt({
+      message: 'Move to finish list?',
+      type: 'confirm',
+      name: 'toFinish',
+    })
+    .then((res) => res.toFinish)
+
+  if (moveToFinish) {
+    const finishName = await inquirer
+      .prompt({
+        message: 'Which list set to finish?',
+        type: 'list',
+        choices: lists.map((ele) => ele.name),
+        name: 'list',
+      })
+      .then((res) => res.list)
+    const listId = lists.find((ele) => ele.name === finishName)!.id
+    await service.moveCardToFinish(
+      listId,
+      thisWeekList.map((ele) => ele.id)
+    )
+  }
+
   if (config.NO_ASK.toLowerCase() === 'false') {
     const ans = await inquirer
       .prompt({

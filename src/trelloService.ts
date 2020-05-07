@@ -63,4 +63,17 @@ export class TrelloService {
     )
     return res.data
   }
+
+  async moveCardToFinish(idList: string, cardsList: string[]) {
+    for (const cardId of cardsList) {
+      try {
+        await req.put(
+          `/1/cards/${cardId}?${stringify({ ...this._auth, idList })}`,
+          { fields: 'id' }
+        )
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
 }

@@ -73,25 +73,25 @@ async function doStuff(config, useConfig = false) {
         config.TARGET_BOARD_NAME = boardName;
         board = boards.find((ele) => ele.name === config.TARGET_BOARD_NAME);
     }
-    const list = await service.getListInBoard(board);
+    const lists = await service.getListInBoard(board);
     // This week
     if (!config.THIS_WEEK_LIST_NAME) {
         const thisWeek = (await inquirer_1.default.prompt({
             message: 'Which list you want to set to this week?',
-            default: list[0].name,
+            default: lists[0].name,
             type: 'list',
             name: 'thisWeek',
-            choices: list.map((ele) => ele.name),
+            choices: lists.map((ele) => ele.name),
         })).thisWeek;
         config.THIS_WEEK_LIST_NAME = thisWeek;
     }
     else {
-        let thisWeek = (_a = list.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME)) === null || _a === void 0 ? void 0 : _a.name;
+        let thisWeek = (_a = lists.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME)) === null || _a === void 0 ? void 0 : _a.name;
         if (thisWeek) {
             config.THIS_WEEK_LIST_NAME = thisWeek;
         }
         else {
-            const mean = didyoumean_1.default(config.THIS_WEEK_LIST_NAME, list, 'id');
+            const mean = didyoumean_1.default(config.THIS_WEEK_LIST_NAME, lists, 'id');
             if (!mean)
                 throw new Error(`Cannot find any name like ${config.THIS_WEEK_LIST_NAME}!`);
             const nameIsCorrect = await inquirer_1.default
@@ -112,20 +112,20 @@ async function doStuff(config, useConfig = false) {
     if (!config.NEXT_WEEK_LIST_NAME) {
         const nextWeek = (await inquirer_1.default.prompt({
             message: 'Which list you want to set to this week?',
-            default: list[0].name,
+            default: lists[0].name,
             type: 'list',
             name: 'nextWeek',
-            choices: list.map((ele) => ele.name),
+            choices: lists.map((ele) => ele.name),
         })).nextWeek;
         config.NEXT_WEEK_LIST_NAME = nextWeek;
     }
     else {
-        let nextWeek = (_b = list.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME)) === null || _b === void 0 ? void 0 : _b.name;
+        let nextWeek = (_b = lists.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME)) === null || _b === void 0 ? void 0 : _b.name;
         if (nextWeek) {
             config.NEXT_WEEK_LIST_NAME = nextWeek;
         }
         else {
-            const mean = didyoumean_1.default(config.NEXT_WEEK_LIST_NAME, list, 'id');
+            const mean = didyoumean_1.default(config.NEXT_WEEK_LIST_NAME, lists, 'id');
             if (!mean)
                 throw new Error(`Cannot find any name like ${config.NEXT_WEEK_LIST_NAME}!`);
             const nameIsCorrect = await inquirer_1.default
@@ -143,8 +143,8 @@ async function doStuff(config, useConfig = false) {
         }
     }
     // assemble
-    const thisWeekId = list.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME).id;
-    const nextWeekId = list.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME).id;
+    const thisWeekId = lists.find((ele) => ele.name === config.THIS_WEEK_LIST_NAME).id;
+    const nextWeekId = lists.find((ele) => ele.name === config.NEXT_WEEK_LIST_NAME).id;
     const thisWeekList = await service
         .getList(thisWeekId)
         .then((data) => data.filter((ele) => ele.idMembers.includes(personId)));
@@ -194,7 +194,25 @@ async function doStuff(config, useConfig = false) {
         to: config.MAIL_TO,
     }).catch(console.error);
     console.log('Success!');
-    console.log(config);
+    const moveToFinish = await inquirer_1.default
+        .prompt({
+        message: 'Move to finish list?',
+        type: 'confirm',
+        name: 'toFinish',
+    })
+        .then((res) => res.toFinish);
+    if (moveToFinish) {
+        const finishName = await inquirer_1.default
+            .prompt({
+            message: 'Which list set to finish?',
+            type: 'list',
+            choices: lists.map((ele) => ele.name),
+            name: 'list',
+        })
+            .then((res) => res.list);
+        const listId = lists.find((ele) => ele.name === finishName).id;
+        await service.moveCardToFinish(listId, thisWeekList.map((ele) => ele.id));
+    }
     if (config.NO_ASK.toLowerCase() === 'false') {
         const ans = await inquirer_1.default
             .prompt({

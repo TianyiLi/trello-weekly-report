@@ -24,7 +24,6 @@ const req = axios.create({
 function validateFile(config: Trello.ENV) {
   const empty = Object.entries(config).filter((ele) => ele[1] === '')
   if (empty.length === 0) return true
-  console.log(empty)
   const allow = empty
     .map((ele) => ele[0])
     .every((ele) =>
@@ -294,8 +293,8 @@ async function MainProcess() {
         name: 'useConfig',
       })
     : { useConfig: false }
-  if (!config || !useConfig) {
-    config = await configure()
+  if (!config || !useConfig || !validateFile(config)) {
+    config = await configure(config)
   }
   if (!validateFile(config)) {
     throw new Error('Config file get error!')

@@ -172,8 +172,11 @@ async function doStuff(config, useConfig = false) {
     const signatureFile = fs_1.existsSync(config.MAIL_SIGNATURE_FILE)
         ? fs_1.readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
         : '';
-    const mailContent = `${listContent}<br />${signatureFile}`;
-    const server = await temp_server_1.createTempServer(mailContent);
+    let mailContent = `${listContent}<br />${signatureFile}`;
+    const server = await temp_server_1.createTempServer(mailContent, (updateStr) => {
+        mailContent = updateStr;
+        console.log('mail content updated');
+    });
     const confirm = await inquirer_1.default
         .prompt({
         message: 'Confirm to send?',

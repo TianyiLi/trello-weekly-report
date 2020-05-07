@@ -4,7 +4,7 @@ import { appendingJS } from './htmlFile/input.html'
 
 export function createTempServer(
   httpContent: string,
-  update?: (str: string) => string
+  update?: (str: string) => void
 ) {
   const server = http.createServer(function (req, res) {
     if (req.url === '/') {

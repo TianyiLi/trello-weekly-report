@@ -2,6 +2,7 @@ import { Trello } from './definition'
 import inquirer from 'inquirer'
 import { sendMail } from './mail'
 import { TrelloService } from './trelloService'
+import { existsSync } from 'fs'
 
 export async function configure(config?: Trello.ENV) {
   let result = await inquirer.prompt<
@@ -46,10 +47,11 @@ export async function configure(config?: Trello.ENV) {
       when: () => !config?.MAIL_SUBJECT,
     },
     {
-      message: 'Has signatureFile?',
+      message: `Has signatureFile?${config?.MAIL_SIGNATURE_FILE && !existsSync(config.MAIL_SIGNATURE_FILE) ? '(file does not exist)' : ''}`,
       type: 'confirm',
       name: 'hasSignature',
-      when: () => !config?.MAIL_SIGNATURE_FILE,
+      when: () =>
+        !config?.MAIL_SIGNATURE_FILE || !existsSync(config.MAIL_SIGNATURE_FILE),
     },
     {
       when(v) {

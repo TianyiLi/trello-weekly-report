@@ -203,8 +203,11 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   const signatureFile = existsSync(config.MAIL_SIGNATURE_FILE)
     ? readFileSync(config.MAIL_SIGNATURE_FILE, { encoding: 'utf8' })
     : ''
-  const mailContent = `${listContent}<br />${signatureFile}`
-  const server = await createTempServer(mailContent)
+  let mailContent = `${listContent}<br />${signatureFile}`
+  const server = await createTempServer(mailContent, (updateStr) => {
+    mailContent = updateStr
+    console.log('mail content updated')
+  })
 
   const confirm = await inquirer
     .prompt<{ confirm: boolean }>({

@@ -34,15 +34,20 @@ ${style}
 <button id="submit">submit</button>
 </div>
 
-<div id="render">${content}</div>
+<div id="render" contenteditable>${content}</div>
 
 <script>
 const content = document.getElementById('text-content');
+const render$ = document.getElementById('render')
 content.value = ${'`' + content + '`'};
 document.getElementById('submit').addEventListener('click', e => {
   fetch('/api/update', {method: 'POST', body: JSON.stringify({content:content.value})})
     .then(res => alert('update success'))
     .catch(err => alert('update failed'))
+})
+
+render$.addEventListener('input', function () {
+  content.value = this.innerHTML
 })
 
 content.addEventListener('input', e => {

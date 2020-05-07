@@ -6,7 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const inquirer_1 = __importDefault(require("inquirer"));
 const mail_1 = require("./mail");
 const trelloService_1 = require("./trelloService");
+const fs_1 = require("fs");
 async function configure(config) {
+    var _a;
     let result = await inquirer_1.default.prompt([
         {
             when: () => { var _a; return !((_a = config) === null || _a === void 0 ? void 0 : _a.MAIL_USER); },
@@ -48,10 +50,10 @@ async function configure(config) {
             when: () => { var _a; return !((_a = config) === null || _a === void 0 ? void 0 : _a.MAIL_SUBJECT); },
         },
         {
-            message: 'Has signatureFile?',
+            message: `Has signatureFile?${((_a = config) === null || _a === void 0 ? void 0 : _a.MAIL_SIGNATURE_FILE) && !fs_1.existsSync(config.MAIL_SIGNATURE_FILE) ? '(file does not exist)' : ''}`,
             type: 'confirm',
             name: 'hasSignature',
-            when: () => { var _a; return !((_a = config) === null || _a === void 0 ? void 0 : _a.MAIL_SIGNATURE_FILE); },
+            when: () => { var _a; return !((_a = config) === null || _a === void 0 ? void 0 : _a.MAIL_SIGNATURE_FILE) || !fs_1.existsSync(config.MAIL_SIGNATURE_FILE); },
         },
         {
             when(v) {

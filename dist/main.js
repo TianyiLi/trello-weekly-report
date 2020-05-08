@@ -235,8 +235,9 @@ async function doStuff(config, useConfig = false) {
 async function MainProcess() {
     let config = (dotenv_1.default.config({ path: arg.file }).parsed ||
         dotenv_1.default.config().parsed);
-    if (fs_1.existsSync(path_1.resolve('~', '.trello-weekly-report'))) {
-        config = JSON.parse(fs_1.readFileSync(path_1.resolve('~', '.trello-weekly-report'), {
+    const defaultPath = path_1.resolve(os_1.homedir(), '.trello-weekly-report');
+    if (fs_1.existsSync(defaultPath)) {
+        config = JSON.parse(fs_1.readFileSync(defaultPath, {
             encoding: 'utf8',
         }));
     }

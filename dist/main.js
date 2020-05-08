@@ -192,7 +192,7 @@ async function doStuff(config, useConfig = false) {
         auth: { user: config.MAIL_USER, pass: config.MAIL_PASSWORD },
         cc: config.MAIL_CC,
         html: mailContent,
-        subject: `[${date_fns_1.format(new Date(), 'MMdd')}]${config.MAIL_SUBJECT}`,
+        subject: `[${date_fns_1.format(date_fns_1.lastDayOfWeek(date_fns_1.subDays(new Date(), 7), { weekStartsOn: 6 }), 'MMdd')}]${config.MAIL_SUBJECT}`,
         to: config.MAIL_TO,
     }).catch(console.error);
     console.log('Success!');

@@ -7,7 +7,7 @@ import didyoumean from 'didyoumean'
 import { list2HTML, sendMail } from './mail'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
-import { format } from 'date-fns'
+import { format, subDays, lastDayOfWeek } from 'date-fns'
 import table from 'cli-table2'
 import { homedir } from 'os'
 import { Trello } from './definition'
@@ -224,7 +224,10 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
     auth: { user: config.MAIL_USER, pass: config.MAIL_PASSWORD },
     cc: config.MAIL_CC,
     html: mailContent,
-    subject: `[${format(new Date(), 'MMdd')}]${config.MAIL_SUBJECT}`,
+    subject: `[${format(
+      lastDayOfWeek(subDays(new Date(), 7), { weekStartsOn: 6 }),
+      'MMdd'
+    )}]${config.MAIL_SUBJECT}`,
     to: config.MAIL_TO,
   }).catch(console.error)
 

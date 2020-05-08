@@ -38,7 +38,7 @@ function validateFile(config) {
     return allow;
 }
 async function doStuff(config, useConfig = false) {
-    var _a, _b;
+    var _a, _b, _c, _d, _e;
     const auth = { key: config.TRELLO_KEY, token: config.TRELLO_TOKEN };
     const service = new trelloService_1.TrelloService(auth);
     const { id: personId } = await service.getPersonalId();
@@ -110,7 +110,7 @@ async function doStuff(config, useConfig = false) {
     // Next Week
     if (!config.NEXT_WEEK_LIST_NAME) {
         const nextWeek = (await inquirer_1.default.prompt({
-            message: 'Which list you want to set to this week?',
+            message: 'Which list you want to set to next week?',
             default: lists[0].name,
             type: 'list',
             name: 'nextWeek',
@@ -215,7 +215,7 @@ async function doStuff(config, useConfig = false) {
         const listId = lists.find((ele) => ele.name === finishName).id;
         await service.moveCardToFinish(listId, thisWeekList.map((ele) => ele.id));
     }
-    if (config.NO_ASK.toLowerCase() === 'false') {
+    if (!((_c = config) === null || _c === void 0 ? void 0 : _c.NO_ASK) || ((_e = (_d = config) === null || _d === void 0 ? void 0 : _d.NO_ASK) === null || _e === void 0 ? void 0 : _e.toLowerCase()) === 'false') {
         const ans = await inquirer_1.default
             .prompt({
             message: 'Save the config?',

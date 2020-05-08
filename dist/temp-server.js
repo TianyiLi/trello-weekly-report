@@ -22,7 +22,6 @@ function createTempServer(httpContent, update) {
             req.on('end', () => {
                 var _a;
                 const data = raw.join('');
-                console.log(data);
                 try {
                     const payload = JSON.parse(data);
                     (_a = update) === null || _a === void 0 ? void 0 : _a(payload.content);

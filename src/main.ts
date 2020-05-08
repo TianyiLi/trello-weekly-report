@@ -128,7 +128,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
   if (!config.NEXT_WEEK_LIST_NAME) {
     const nextWeek = (
       await inquirer.prompt<{ nextWeek: string }>({
-        message: 'Which list you want to set to this week?',
+        message: 'Which list you want to set to next week?',
         default: lists[0].name,
         type: 'list',
         name: 'nextWeek',
@@ -254,7 +254,7 @@ async function doStuff(config: Trello.ENV, useConfig = false) {
     )
   }
 
-  if (config.NO_ASK.toLowerCase() === 'false') {
+  if (!config?.NO_ASK || config?.NO_ASK?.toLowerCase() === 'false') {
     const ans = await inquirer
       .prompt({
         message: 'Save the config?',

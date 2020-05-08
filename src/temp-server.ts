@@ -18,7 +18,6 @@ export function createTempServer(
       })
       req.on('end', () => {
         const data = raw.join('')
-        console.log(data)
         try {
           const payload = JSON.parse(data) as { content: string }
           update?.(payload.content)

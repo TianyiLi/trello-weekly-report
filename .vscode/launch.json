@@ -19,6 +19,20 @@
       "env": {
         "TS_NODE_IGNORE": "false"
       }
+    },
+    {
+      "type":"node",
+      "request": "launch",
+      "name": "rx-test",
+      "skipFiles": ["<node_internals>/**"],
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "protocol": "inspector",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "openOnSessionStart",
+      "args": ["${workspaceRoot}/rx-test.ts"],
+      "env": {
+        "TS_NODE_IGNORE": "false"
+      }
     }
   ]
 }

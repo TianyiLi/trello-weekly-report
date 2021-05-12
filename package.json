@@ -21,7 +21,7 @@
         "inquirer": "^7.1.0",
         "inquirer-fuzzy-path": "^2.3.0",
         "minimist": "^1.2.5",
-        "nodemailer": "^6.4.6",
+        "nodemailer": "^6.4.16",
         "open": "^7.0.3",
         "query-string": "^6.12.1",
         "typescript": "^3.8.3"
